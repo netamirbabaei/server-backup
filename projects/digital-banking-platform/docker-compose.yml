@@ -1,0 +1,65 @@
+services:
+  app:
+    build: .
+    container_name: banking-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_NAME: banking
+      DB_USER: banking
+      DB_PASSWORD: banking
+      JWT_SECRET: change-me-in-a-real-environment-please-32bytes
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - banking-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: banking-postgres
+    environment:
+      POSTGRES_DB: banking
+      POSTGRES_USER: banking
+      POSTGRES_PASSWORD: banking
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - banking-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: banking-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - banking-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: banking-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - banking-net
+
+volumes:
+  pgdata:
+
+networks:
+  banking-net:
+    driver: bridge
